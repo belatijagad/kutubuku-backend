@@ -1,0 +1,5 @@
+django
+djangorestframework
+django-cors-headers
+djangorestframework-jwt
+dj-rest-auth
