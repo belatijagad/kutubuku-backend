@@ -67,6 +67,7 @@ def get_user(request):
         "username": request.user.username,
     }, status=200)
 
+@csrf_exempt
 def change_password(request):
     user = request.user
     old_password = request.POST.get('old_password')
