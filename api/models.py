@@ -23,7 +23,7 @@ class Book(models.Model):
     reviewers = models.IntegerField(default=0)
     score = models.FloatField(default=0)
     average_score = models.FloatField(default=0)
-    
+
     # Secara otomatis terbuat ketika ngebikin object
     published_at = models.DateField(auto_now_add=True)
 
@@ -34,13 +34,13 @@ class Book(models.Model):
 
     def __str__(self):
         return self.title
-    
+
     class Meta:
         ordering = ['published_at']
 
 class CustomUser(AbstractUser):
     bookmarks = models.ManyToManyField(Book, blank=True)
-    
+
     def __str__(self):
         return self.username
 

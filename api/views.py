@@ -1,11 +1,10 @@
-from django.contrib.auth import authenticate, get_user_model, logout as auth_logout, login as auth_login
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth import authenticate, login as auth_login, logout as auth_logout
+from django.contrib.auth import get_user_model
 from django.contrib.auth.hashers import make_password
 from django.http import HttpResponse, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.core import serializers
 from api.models import Book, Genre
-
 
 CustomUser = get_user_model()
 
@@ -63,14 +62,41 @@ def get_genres(request):
    genre_names = [genre.name for genre in genres]
    return JsonResponse(genre_names, safe=False)
 
-# @login_required(login_url='/api/login/')
-def get_user_details(request, username):
-    user = CustomUser.objects.get(username=username)
-    return JsonResponse({'username': user.get_username()})
+def get_user(request):
+    return JsonResponse({
+        "username": request.user.username,
+    }, status=200)
+
+def change_password(request):
+    user = request.user
+    old_password = request.POST.get('old_password')
+    new_password = request.POST.get('new_password')
+
+    if not user.check_password(old_password):
+        return JsonResponse({
+            "status": False,
+            "message": "Old password is incorrect."
+        }, status=400)
+
+    user.set_password(new_password)
+    user.save()
+
+    return JsonResponse({
+        "status": True,
+        "message": "Password successfully changed."
+    }, status=200)
 
 ##########################################################################################
 #                                     Authentication                                     #
 ##########################################################################################
+
+@csrf_exempt
+def logout(request):
+    auth_logout(request)
+    return JsonResponse({
+      "status": True,
+      "message": "Successfully Logged Out!"
+    }, status=200)
 
 @csrf_exempt
 def login(request):
@@ -79,7 +105,7 @@ def login(request):
     user = authenticate(username=username, password=password)
     if user is not None:
         if user.is_active:
-            auth_login(request, user)
+            auth_login(request, user, backend='api.backend.CustomBackend')
             return JsonResponse({
               "status": True,
               "message": "Successfully Logged In!"
@@ -94,23 +120,6 @@ def login(request):
         return JsonResponse({
           "status": False,
           "message": "Failed to Login, check your email/password."
-        }, status=401)
-    
-@csrf_exempt
-def logout(request):
-    username = request.user.username
-
-    try:
-        auth_logout(request)
-        return JsonResponse({
-            "username": username,
-            "status": True,
-            "message": "Logout berhasil!"
-        }, status=200)
-    except:
-        return JsonResponse({
-        "status": False,
-        "message": "Logout gagal."
         }, status=401)
 
 @csrf_exempt
@@ -138,8 +147,8 @@ def register(request):
             user = CustomUser.objects.create(
                 username=username,
                 password=make_password(password),
-                # Set other CustomUser fields here if necessary
             )
+            user.is_active = True
             user.save()
 
             return JsonResponse({
