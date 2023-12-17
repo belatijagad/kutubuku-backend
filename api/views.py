@@ -1,10 +1,11 @@
-from django.contrib.auth import authenticate, login as auth_login
-from django.contrib.auth import get_user_model
+from django.contrib.auth import authenticate, get_user_model, logout as auth_logout, login as auth_login
+from django.contrib.auth.decorators import login_required
 from django.contrib.auth.hashers import make_password
 from django.http import HttpResponse, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.core import serializers
 from api.models import Book, Genre
+
 
 CustomUser = get_user_model()
 
@@ -62,6 +63,11 @@ def get_genres(request):
    genre_names = [genre.name for genre in genres]
    return JsonResponse(genre_names, safe=False)
 
+# @login_required(login_url='/api/login/')
+def get_user_details(request, username):
+    user = CustomUser.objects.get(username=username)
+    return JsonResponse({'username': user.get_username()})
+
 ##########################################################################################
 #                                     Authentication                                     #
 ##########################################################################################
@@ -90,6 +96,22 @@ def login(request):
           "message": "Failed to Login, check your email/password."
         }, status=401)
     
+@csrf_exempt
+def logout(request):
+    username = request.user.username
+
+    try:
+        auth_logout(request)
+        return JsonResponse({
+            "username": username,
+            "status": True,
+            "message": "Logout berhasil!"
+        }, status=200)
+    except:
+        return JsonResponse({
+        "status": False,
+        "message": "Logout gagal."
+        }, status=401)
 
 @csrf_exempt
 def register(request):
