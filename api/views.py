@@ -1,3 +1,4 @@
+import dis
 from django.contrib.auth import authenticate, login as auth_login, logout as auth_logout
 from django.contrib.auth import get_user_model
 from django.contrib.auth.hashers import make_password
@@ -64,14 +65,15 @@ def get_genres(request):
 
 def get_user(request):
     return JsonResponse({
-        "username": request.user.username,
+        "display_name": request.user.display_name,
     }, status=200)
 
 @csrf_exempt
 def change_password(request):
     user = request.user
-    old_password = request.POST.get('old_password')
-    new_password = request.POST.get('new_password')
+    old_password = request.POST['old_password']
+    new_password = request.POST['new_password']
+    display_name = request.POST['display_name']
 
     if not user.check_password(old_password):
         return JsonResponse({
@@ -79,6 +81,7 @@ def change_password(request):
             "message": "Old password is incorrect."
         }, status=400)
 
+    user.display_name = display_name
     user.set_password(new_password)
     user.save()
 
@@ -146,6 +149,7 @@ def register(request):
         # Create the user
         try:
             user = CustomUser.objects.create(
+                display_name=username,
                 username=username,
                 password=make_password(password),
             )

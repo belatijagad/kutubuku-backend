@@ -40,6 +40,7 @@ class Book(models.Model):
 
 class CustomUser(AbstractUser):
     bookmarks = models.ManyToManyField(Book, blank=True)
+    display_name = models.TextField(null=True, blank=True)
 
     def __str__(self):
         return self.username
