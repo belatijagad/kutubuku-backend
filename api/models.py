@@ -72,4 +72,4 @@ class ReadingProgress(models.Model):
         return f"{self.user.username}'s progress in {self.book.title}"
 
     class Meta:
-        unique_together = ('user', 'book')  # Ensure one entry per user-book pair
+        unique_together = ('user', 'book')
