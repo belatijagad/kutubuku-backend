@@ -10,6 +10,9 @@ from api.models import Book, Genre, ReadingProgress, Ulasan
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_POST, require_http_methods
 from django.core.exceptions import ObjectDoesNotExist
+from django.db.models import F, FloatField, Sum
+from django.db.models.functions import Cast
+
 
 CustomUser = get_user_model()
 
@@ -239,6 +242,11 @@ def submit_review(request, book_id):
         review = Ulasan(user=user, book=book, rating=rating, comment=comment)
         review.save()
 
+        book.reviewers += 1
+        book.score += rating * 20
+        book.average_score = 0 if not book.reviewers else book.score / book.reviewers
+        book.save()
+
         return JsonResponse({'statusCode': 201, 'message': 'Review submitted successfully.'}, status=201)
 
     except Book.DoesNotExist:
@@ -272,7 +280,15 @@ def delete_review(request, review_id):
     try:
         user = request.user
         review = Ulasan.objects.get(pk=review_id, user=user)
+        book = Book.objects.get(id=review.book.pk)
+
+        book.reviewers += 1
+        book.score -= review.rating * 20
+        book.average_score = 0 if not book.reviewers else book.score / book.reviewers
+
         review.delete()
+        book.save()
+
         return JsonResponse({'statusCode': 200, 'message': 'Review deleted successfully.'}, status=200)
     except Ulasan.DoesNotExist:
         return JsonResponse({'statusCode': 400, 'message': 'Review not found or not authorized to delete.'}, status=404)
