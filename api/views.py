@@ -319,18 +319,18 @@ def login(request):
             auth_login(request, user, backend='api.backend.CustomBackend')
             return JsonResponse({
               "status": True,
-              "message": "Berhasil masuk!"
+              "message": "Successfully Logged In!"
             }, status=200)
         else:
             return JsonResponse({
               "status": False,
-              "message": "Gagal untuk masuk. Akun Anda sedang dibekukan."
+              "message": "Failed to Login, Account Disabled."
             }, status=401)
 
     else:
         return JsonResponse({
           "status": False,
-          "message": "Gagal untuk masuk. Tolong periksa kembali kredensial Anda."
+          "message": "Failed to Login, check your email/password."
         }, status=401)
 
 @csrf_exempt
@@ -343,14 +343,14 @@ def register(request):
         if not username or not password:
             return JsonResponse({
                 "status": False,
-                "message": "Tolong isi semua masukan!"
+                "message": "Username, password, and email are required."
             }, status=400)
 
         # Check if user already exists
         if CustomUser.objects.filter(username=username).exists():
             return JsonResponse({
                 "status": False,
-                "message": "Nama panggilan sudah terpakai."
+                "message": "Username already exists."
             }, status=400)
 
         # Create the user
@@ -364,13 +364,13 @@ def register(request):
 
             return JsonResponse({
                 "status": True,
-                "message": "Akun berhasil didaftarkan."
+                "message": "User successfully registered."
             }, status=201)
 
         except Exception as e:
             return JsonResponse({
                 "status": False,
-                "message": f"Terdapat masalah di proses registrasi: {str(e)}"
+                "message": f"Error occurred during registration: {str(e)}"
             }, status=500)
     else:
         return JsonResponse({
