@@ -6,7 +6,7 @@ from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
 from django.core import serializers
-from api.models import Book, Genre, ReadingProgress, Ulasan
+from api.models import Book, Genre, ReadingProgress, ReviewVote, Ulasan
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_POST, require_http_methods
 from django.core.exceptions import ObjectDoesNotExist
@@ -70,6 +70,48 @@ def get_genres(request):
    genre_names = [genre.name for genre in genres]
    return JsonResponse(genre_names, safe=False)
 
+@login_required
+@csrf_exempt
+def add_book(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            title = data.get('title')
+            chapters = data.get('chapters')
+            img_src = data.get('img_src')
+            synopsis = data.get('synopsis')
+            genre_names = data.get('genre')
+
+            # Validate required fields
+            if not title or not chapters or not img_src or not synopsis:
+                return JsonResponse({'status': 'error', 'message': 'Missing required fields.'}, status=400)
+
+            # Create the book instance
+            book = Book(
+                title=title,
+                chapters=chapters,
+                img_src=img_src,
+                synopsis=synopsis,
+                user=request.user if not request.user.is_anonymous else None
+            )
+            book.save()
+
+            # Add genres to the book
+            for name in genre_names.split(','):
+                name = name.title()
+                genre, created = Genre.objects.get_or_create(name=name)
+                book.genre.add(genre)
+
+            book.save()
+
+            return JsonResponse({'status': 'success', 'message': 'Book added successfully.', 'book_id': book.id}, status=201)
+
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+    else:
+        return JsonResponse({'status': 'error', 'message': 'Invalid request method.'}, status=400)
+
+
 ##########################################################################################
 #                                         User                                           #
 ##########################################################################################
@@ -115,8 +157,6 @@ def toggle_bookmark(request, book_id):
         else:
             user.bookmarks.add(book)
             is_bookmarked = True
-            print('bookmarked')
-            print(user.bookmarks.all())
         return JsonResponse({'bookmarked': is_bookmarked, 'statusCode': 200}, status=200)
     except Book.DoesNotExist:
         return JsonResponse({'error': 'Book not found'}, status=404)
@@ -210,7 +250,6 @@ def get_reading_progress(request, book_id):
             'statusCode': 200,
             'last_read': reading_progress.last_read,
         }
-        print(data)
         return JsonResponse(data, status=200)
     except ReadingProgress.DoesNotExist:
         return JsonResponse({'current_chapter': 0, 'statusCode': 200}, status=404)
@@ -267,7 +306,7 @@ def fetch_reviews(request, book_id):
             'comment': review.comment,
             'upvotes': review.upvotes,
             'downvotes': review.downvotes,
-            'created_at': review.created_at.strftime('%Y-%m-%d %H:%M:%S')
+            'created_at': review.created_at.strftime('%Y/%m/%d')
         } for review in reviews]
 
         return JsonResponse({'status': 'success', 'reviews': reviews_data}, safe=False)
@@ -305,12 +344,64 @@ def get_user_review(request, book_id):
             'comment': review.comment,
             'upvotes': review.upvotes,
             'downvotes': review.downvotes,
-            'created_at': review.created_at.strftime('%Y-%m-%d %H:%M:%S')
+            'created_at': review.created_at.strftime('%Y/%m/%d'),
         }
         return JsonResponse({'status': 'success', 'review': review_data})
     except ObjectDoesNotExist:
         return JsonResponse({'status': 'error', 'message': 'Review not found.'}, status=404)
 
+@login_required
+def upvote_review(request, review_id):
+    if request.user.is_authenticated:
+        review = Ulasan.objects.get(pk=review_id)
+        vote, created = ReviewVote.objects.get_or_create(user=request.user, review=review)
+
+        if created or vote.vote_type == ReviewVote.DOWNVOTE:
+            vote.vote_type = ReviewVote.UPVOTE
+            vote.save()
+            review.upvotes += 1
+            if not created:
+                review.downvotes -= 1  # Remove downvote if it existed
+            review.save()
+            return JsonResponse({'status': 'success', 'message': 'Review upvoted.'})
+        else:
+            return JsonResponse({'status': 'error', 'message': 'You have already upvoted this review.'})
+
+    return JsonResponse({'status': 'error', 'message': 'You must be logged in to vote.'}, status=401)
+
+@login_required
+def downvote_review(request, review_id):
+    if request.user.is_authenticated:
+        review = Ulasan.objects.get(pk=review_id)
+        vote, created = ReviewVote.objects.get_or_create(user=request.user, review=review)
+
+        if created or vote.vote_type == ReviewVote.UPVOTE:
+            vote.vote_type = ReviewVote.DOWNVOTE
+            vote.save()
+            review.downvotes += 1
+            if not created:
+                review.upvotes -= 1  # Remove upvote if it existed
+            review.save()
+            return JsonResponse({'status': 'success', 'message': 'Review downvoted.'})
+        else:
+            return JsonResponse({'status': 'error', 'message': 'You have already downvoted this review.'})
+
+    return JsonResponse({'status': 'error', 'message': 'You must be logged in to vote.'}, status=401)
+
+@login_required
+def get_vote_status(request, review_id):
+    try:
+        review = Ulasan.objects.get(pk=review_id)
+        vote = ReviewVote.objects.filter(user=request.user, review=review).first()
+
+        if vote.vote_type == ReviewVote.UPVOTE:
+            return JsonResponse({'voteStatus': 'upvote', 'status': 'success'})
+        else:
+            return JsonResponse({'voteStatus': 'downvote', 'status': 'success'})
+    except ReviewVote.DoesNotExist:
+        return JsonResponse({'message': 'Review not found.', 'status': 'error'}, status=404)
+    except Exception as e:
+        return JsonResponse({'message': str(e), 'status': 'error'}, status=500)
 
 
 ##########################################################################################

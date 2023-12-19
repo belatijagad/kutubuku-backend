@@ -60,6 +60,23 @@ class Ulasan(models.Model):
     # Secara otomatis terbuat ketika ngebikin object
     created_at = models.DateTimeField(auto_now_add=True)
 
+class ReviewVote(models.Model):
+    UPVOTE = 'U'
+    DOWNVOTE = 'D'
+    VOTE_TYPES = [
+        (UPVOTE, 'Upvote'),
+        (DOWNVOTE, 'Downvote'),
+    ]
+
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
+    review = models.ForeignKey('Ulasan', on_delete=models.CASCADE, related_name='votes')
+    vote_type = models.CharField(max_length=1, choices=VOTE_TYPES)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('user', 'review')  # Ensure one vote per user per review
+
+
 class ReadingProgress(models.Model):
     # Inisiasi secara otomatis
     user = models.ForeignKey(CustomUser, on_delete=models.CASCADE)

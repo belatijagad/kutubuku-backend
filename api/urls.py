@@ -17,6 +17,10 @@ from api.views import (
     get_user_review,
     update_or_create_progress,
     get_reading_progress,
+    upvote_review,
+    downvote_review,
+    get_vote_status,
+    add_book,
     )
 
 app_name = 'api'
@@ -39,4 +43,8 @@ urlpatterns = [
     path('get_review/<int:book_id>/', get_user_review),
     path('update_progress/<int:book_id>/<int:chapter_number>/', update_or_create_progress),
     path('get_progress/<int:book_id>/', get_reading_progress),
+    path('reviews/<int:review_id>/upvote/', upvote_review),
+    path('reviews/<int:review_id>/downvote/', downvote_review),
+    path('get_vote_status/<int:review_id>/', get_vote_status),
+    path('add_book/', add_book),
 ]
