@@ -19,6 +19,7 @@ class Command(BaseCommand):
             novel.reviewers = novel_data['reviewers']
             novel.score = novel_data['score'] * novel_data['reviewers'] if novel_data['reviewers'] else 0
             novel.average_score = novel_data['score']
+            novel.is_approved = True
             novel.save()
 
             for genre in novel_data['genres']:

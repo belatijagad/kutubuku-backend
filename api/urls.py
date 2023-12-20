@@ -21,6 +21,9 @@ from api.views import (
     downvote_review,
     get_vote_status,
     add_book,
+    delete_book,
+    fetch_approval,
+    approve_book,
     )
 
 app_name = 'api'
@@ -47,4 +50,7 @@ urlpatterns = [
     path('reviews/<int:review_id>/downvote/', downvote_review),
     path('get_vote_status/<int:review_id>/', get_vote_status),
     path('add_book/', add_book),
+    path('fetch_approval/', fetch_approval),
+    path('books/<int:book_id>/delete/', delete_book),
+    path('books/<int:book_id>/approve/', approve_book)
 ]

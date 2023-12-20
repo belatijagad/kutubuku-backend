@@ -11,6 +11,7 @@ class Book(models.Model):
     # Kalau author empty, bakal pake user, dan sebaliknya.
     author = models.TextField(blank=True)
     user = models.ForeignKey('CustomUser', on_delete=models.SET_NULL, null=True, blank=True)
+    is_approved = models.BooleanField(default=False)
 
     # Field yang bakal disediain di form
     title = models.TextField()

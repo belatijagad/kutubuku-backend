@@ -10,7 +10,7 @@ from api.models import Book, Genre, ReadingProgress, ReviewVote, Ulasan
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_POST, require_http_methods
 from django.core.exceptions import ObjectDoesNotExist
-from django.db.models import F, FloatField, Sum
+from django.db.models import F, ExpressionWrapper, IntegerField
 from django.db.models.functions import Cast
 
 
@@ -26,9 +26,9 @@ def search(request):
   genre_slug = request.GET.get('genre', '')
 
   if not query.strip():
-    results = Book.objects.all()
+    results = Book.objects.filter(is_approved=True)
   else:
-    results = Book.objects.filter(title__icontains=query)
+    results = Book.objects.filter(is_approved=True, title__icontains=query)
 
   if genre_slug:
     results = results.filter(genre__name__icontains=genre_slug)
@@ -60,6 +60,44 @@ def search(request):
     }
   } for book in results]
   return JsonResponse(data, safe=False)
+
+def fetch_approval(request):
+    books = Book.objects.filter(is_approved=False)
+    data = [{
+    'model': 'api.book',
+    'pk': book.id,
+    'fields': {
+        'id': book.id,
+        'title': book.title,
+        'author': book.author,
+        'img_src': book.img_src,
+        'genre': [genre.name for genre in book.genre.all()],
+        'synopsis': book.synopsis,
+        'reviewers': book.reviewers,
+        'chapters': book.chapters,
+        'score': book.score,
+        'average_score': book.average_score,
+        'published_at': book.published_at.strftime('%Y-%m-%d'),
+    }} for book in books]
+    return JsonResponse(data, safe=False)
+
+def delete_book(request, book_id):
+    try:
+        book = Book.objects.get(pk=book_id)
+        book.delete()
+        return JsonResponse({'status': 'Success'})
+    except e:
+        return JsonResponse({'status': 'Failed'})
+    
+def approve_book(request, book_id):
+    try:
+        book = Book.objects.get(pk=book_id)
+        book.is_approved = True
+        book.save()
+        print(book)
+        return JsonResponse({'status': 'Success'})
+    except e:
+        return JsonResponse({'status': 'Failed'})
 
 def show_json_by_id(request, id):
     data = Book.objects.filter(pk=id)
@@ -119,6 +157,7 @@ def add_book(request):
 def get_user(request):
     return JsonResponse({
         "username": request.user.username,
+        "is_superuser": request.user.is_superuser,
     }, status=200)
 
 @csrf_exempt
@@ -297,7 +336,9 @@ def submit_review(request, book_id):
 def fetch_reviews(request, book_id):
     try:
         book = Book.objects.get(id=book_id)
-        reviews = Ulasan.objects.filter(book=book).order_by('-created_at')
+        reviews = Ulasan.objects.filter(book=book) \
+            .annotate(vote_difference=ExpressionWrapper(F('upvotes') - F('downvotes'), output_field=IntegerField())) \
+            .order_by('-vote_difference')
 
         reviews_data = [{
             'user': review.user.username,
@@ -317,8 +358,7 @@ def fetch_reviews(request, book_id):
 @login_required
 def delete_review(request, review_id):
     try:
-        user = request.user
-        review = Ulasan.objects.get(pk=review_id, user=user)
+        review = Ulasan.objects.get(pk=review_id)
         book = Book.objects.get(id=review.book.pk)
 
         book.reviewers += 1
